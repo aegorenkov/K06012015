@@ -1,0 +1,49 @@
+---
+title: "Explore Data Types"
+output: html_document
+---
+
+```{r}
+library(stargazer)
+MAIN_DIRECTORY <- "~/Kaggle/K06012015"
+```
+
+```{r}
+setwd(MAIN_DIRECTORY)
+meta_data <- read.csv("data/metaData_taxistandsID_name_GPSlocation.csv/metaData_taxistandsID_name_GPSlocation.csv")
+head(meta_data)
+```
+Note: There is a read error on line 41
+
+```{r}
+setwd(MAIN_DIRECTORY)
+submission_sample <- read.csv("data/sampleSubmission.csv/sampleSubmission.csv")
+head(submission_sample)
+```
+Submission requires a dataset of three variables, (TRIP_ID, LATITUDE, LONGITUDE). These represent a destination.
+
+```{r results='asis'}
+setwd(MAIN_DIRECTORY)
+test_data <- read.csv("data/test.csv/test.csv")
+names(test_data)
+```
+
+```{r}
+head(test_data[1:8])
+```
+I believe origin call and origin stand are mutually exclusive. The data should be unique identified by TAXI_ID and TIMESTAMP. The test data doesn't make the submission sample, so we need pull out the destination for cross-validation.
+
+```{r}
+#display a single polyline
+print(as.character(test_data[1, 9]))
+```
+Polylines are basically python arrays--this might be easier in python. The pairs are clearly longitude and latitude--reversed in order from the submission sample.
+
+```{r}
+setwd(MAIN_DIRECTORY)
+train_data <- read.csv("data/train.csv/train.csv", nrows = 50)
+head(train_data)
+```
+Train and test data look similar, good.
+
+We need to get more information on how the the polyline actually relates to the submission data. This should be answered somewhere in the forums.
