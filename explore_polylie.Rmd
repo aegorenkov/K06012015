@@ -1,0 +1,72 @@
+---
+title: "Take a look at the polylines"
+output: html_document
+---
+
+
+```{r}
+library(stargazer)
+MAIN_DIRECTORY <- "~/Kaggle/K06012015"
+```
+
+
+```{r}
+setwd(MAIN_DIRECTORY)
+library(data.table)
+library(dplyr)
+library(tidyr)
+train_data <- fread(input = "data/train.csv/train.csv")
+```
+
+```{r}
+library(OpenStreetMap)
+library(ggmap)
+library(readr)
+library(rjson)
+
+#Load street map of Portugal
+map <- get_openstreetmap(
+  bbox =  c(left = -8.70, bottom = 41.10, right = -8.40, top = 41.30), 
+  scale = OSM_scale_lookup(zoom=12)
+  )
+
+#Sample a trip
+trip.sample <- train_data %>% dplyr::select(TRIP_ID) %>% sample_n(size = 4)
+trip <- train_data %>% dplyr::filter(TRIP_ID %in% trip.sample$TRIP_ID)
+
+#Define core function for MapReduce/split-apply-combine
+trip.function <- function(row) {
+  #Extract Polyline and convert to columns
+  polyline <- as.data.frame(do.call(rbind, fromJSON(row$POLYLINE)))
+  #Format new data frame
+  names(polyline) <- c("long", "lat")
+  df <- data.frame(long = polyline[1], 
+                   lat = polyline[2])
+  number_poly <- nrow(df)
+  df$TRIP_ID <- row$TRIP_ID
+  df$PRIMARY_ID <- paste(df$TRIP_ID, 1:number_poly, sep = '_')
+  df$CALL_TYPE <- row$CALL_TYPE
+  df$ORIGIN_CALL <- row$ORIGIN_CALL
+  df$ORIGIN_STAND <- row$ORIGIN_STAND
+  df$TAXI_ID <- row$TAXI_ID
+  df$TIMESTAMP <- row$TIMESTAMP
+  df$DAY_TYPE <- row$DAY_TYPE
+  df$MISSING_DATA <- row$MISSING_DATA
+  df$STATUS <- c("Start", rep("During Trip", times = number_poly - 2), "Destination")
+  df
+}
+#Run MapReduce
+trip.splitkey <- trip$TRIP_ID
+trip.split <- split(trip, f = trip.splitkey)
+trip.apply <- lapply(trip.split, FUN = trip.function)
+trip.combine <- Reduce('rbind', trip.apply)
+
+png(filename = "a_few_sample_trips.png")
+ggmap(map) +
+     geom_point(data=trip.combine, aes(x=long, y=lat, color=STATUS, size = I(STATUS == 'During Trip'))) +
+     scale_color_manual(values=c("blue", "#00CC00", "red")) +
+     scale_size_manual(values=c(5, 2))+
+  theme(legend.position = 'None')
+dev.off()
+
+```
